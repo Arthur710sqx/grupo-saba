@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import secrets
 import hmac
 from datetime import date
@@ -53,8 +54,8 @@ def login_required(view):
 @app.route('/')
 def inicio():
     with conectar(DB_PATH) as db:
-        projetos = db.execute('SELECT * FROM projetos ORDER BY id LIMIT 3').fetchall()
-        noticias = db.execute('SELECT * FROM noticias ORDER BY data DESC LIMIT 3').fetchall()
+        projetos = db.execute('SELECT * FROM projetos WHERE id >= 1001 ORDER BY id LIMIT 3').fetchall()
+        noticias = db.execute('SELECT * FROM noticias WHERE id >= 1001 ORDER BY data DESC LIMIT 3').fetchall()
     return render_template('inicio.html', site=site_content(), projetos=projetos, noticias=noticias)
 
 
@@ -66,7 +67,7 @@ def quem_somos():
 @app.route('/projetos')
 def projetos():
     with conectar(DB_PATH) as db:
-        projetos = db.execute('SELECT * FROM projetos ORDER BY id').fetchall()
+        projetos = db.execute('SELECT * FROM projetos WHERE id >= 1001 AND (titulo LIKE ? OR tema LIKE ?) ORDER BY id', ('%' + request.args.get('q','') + '%', '%' + request.args.get('q','') + '%')).fetchall()
     return render_template('projetos.html', projetos=projetos)
 
 
@@ -90,7 +91,7 @@ def voluntariado():
         try:
             with conectar(DB_PATH) as db:
                 db.execute('INSERT INTO voluntarios(nome,email,telefone,cidade,consentimento) VALUES(?,?,?,?,1)', tuple(dados.values()))
-        except Exception:
+        except sqlite3.IntegrityError:
             flash('Este e-mail já está cadastrado ou não foi possível receber seu interesse.', 'erro')
             return render_template('voluntariado.html', dados=dados), 400
         flash('Recebemos seu interesse. A equipe do Grupo Sabá poderá entrar em contato.', 'sucesso')
@@ -151,7 +152,7 @@ def admin_logout():
 def admin_dashboard():
     with conectar(DB_PATH) as db:
         totais = {t: db.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('voluntarios', 'beneficiarios', 'parceiros_doadores', 'projetos')}
-        beneficiarios = db.execute('SELECT id,nome,localizacao,status,prioridade,criado_em FROM beneficiarios ORDER BY CASE prioridade WHEN "alta" THEN 0 WHEN "media" THEN 1 ELSE 2 END, criado_em').fetchall()
+        beneficiarios = db.execute('SELECT * FROM beneficiarios ORDER BY CASE prioridade WHEN "alta" THEN 0 WHEN "media" THEN 1 WHEN "pendente" THEN 2 ELSE 3 END, criado_em').fetchall()
         voluntarios = db.execute('SELECT id,nome,email,cidade,status FROM voluntarios ORDER BY id DESC LIMIT 30').fetchall()
         parceiros = db.execute('SELECT id,tipo_pessoa,nome,email,tipo_apoio,status FROM parceiros_doadores ORDER BY id DESC LIMIT 30').fetchall()
     return render_template('admin.html', totais=totais, beneficiarios=beneficiarios, voluntarios=voluntarios, parceiros=parceiros)
@@ -192,11 +193,13 @@ def registrar_visita(beneficiario_id):
     responsavel = request.form.get('responsavel', '').strip()
     observacoes = request.form.get('observacoes', '').strip()
     urgencia = request.form.get('urgencia', '').strip()
-    if not data_visita or not responsavel or urgencia not in ('baixa', 'media', 'alta'):
+    if not data_visita or not responsavel or len(observacoes) < 10 or urgencia not in ('baixa', 'media', 'alta'):
         flash('Informe data, responsável e grau de urgência para registrar a visita.', 'erro')
         return redirect(url_for('admin_dashboard'))
     try:
         date.fromisoformat(data_visita)
+        if date.fromisoformat(data_visita) > date.today():
+            raise ValueError()
     except ValueError:
         flash('Data da visita inválida.', 'erro')
         return redirect(url_for('admin_dashboard'))

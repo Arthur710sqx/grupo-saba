@@ -1,7 +1,13 @@
 import sqlite3
+class Conexao(sqlite3.Connection):
+    def __exit__(self, *args):
+        try:
+            return super().__exit__(*args)
+        finally:
+            self.close()
 from pathlib import Path
 def conectar(path):
-    db=sqlite3.connect(path); db.row_factory=sqlite3.Row; db.execute('PRAGMA foreign_keys=ON'); return db
+    db=sqlite3.connect(path, factory=Conexao); db.row_factory=sqlite3.Row; db.execute('PRAGMA foreign_keys=ON'); return db
 def inicializar_banco(path):
     Path(path).parent.mkdir(parents=True,exist_ok=True)
     with conectar(path) as db:
