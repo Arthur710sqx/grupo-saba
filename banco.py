@@ -23,7 +23,10 @@ def inicializar_banco(path):
         if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='parceiros_doadores'").fetchone():
             for campo, definicao in [('documento','TEXT'),('tipo_apoio','TEXT')]:
                 if campo not in {r[1] for r in db.execute('PRAGMA table_info(parceiros_doadores)')}: db.execute(f'ALTER TABLE parceiros_doadores ADD COLUMN {campo} {definicao}')
-        db.executescript('''CREATE TABLE IF NOT EXISTS site_conteudo(chave TEXT PRIMARY KEY,valor TEXT NOT NULL);
+        db.executescript('''CREATE TABLE IF NOT EXISTS agendamentos(id INTEGER PRIMARY KEY,beneficiario_id INTEGER NOT NULL REFERENCES beneficiarios(id),data TEXT NOT NULL,responsavel TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'agendada');
+        CREATE TABLE IF NOT EXISTS atendimentos(id INTEGER PRIMARY KEY,beneficiario_id INTEGER NOT NULL REFERENCES beneficiarios(id),status TEXT NOT NULL,descricao TEXT NOT NULL,criado_em TEXT DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS midias(id INTEGER PRIMARY KEY,projeto_id INTEGER REFERENCES projetos(id),titulo TEXT NOT NULL,url TEXT NOT NULL,fonte TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS site_conteudo(chave TEXT PRIMARY KEY,valor TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS projetos(id INTEGER PRIMARY KEY,titulo TEXT NOT NULL,objetivo TEXT NOT NULL,tema TEXT,situacao TEXT NOT NULL DEFAULT 'A confirmar',imagem TEXT);
         CREATE TABLE IF NOT EXISTS noticias(id INTEGER PRIMARY KEY,titulo TEXT NOT NULL,resumo TEXT NOT NULL,data TEXT NOT NULL,imagem TEXT);
         CREATE TABLE IF NOT EXISTS acoes_eventos(id INTEGER PRIMARY KEY,projeto_id INTEGER NOT NULL REFERENCES projetos(id),titulo TEXT NOT NULL,data TEXT);
@@ -51,4 +54,15 @@ def inicializar_banco(path):
         INSERT OR IGNORE INTO noticias(id,titulo,resumo,data) VALUES
         (1001,'Dia Mundial do Refugiado: Solidariedade, Direitos e Inclusão para Transformar Vidas','Reflexão sobre acolhimento, direitos e inclusão de pessoas refugiadas em Roraima.','2026-06-20'),
         (1002,'Grupo Sabá leva dignidade, prevenção e esperança a migrantes e pessoas em situação de rua em Boa Vista','Ação do Programa Viva Protegidx com kits de prevenção, informação em saúde e orientação sobre direitos.','2025-01-09');''')
+        for tabela, campos in {
+            'voluntarios': [('disponibilidade', "TEXT DEFAULT ''"), ('interesses', "TEXT DEFAULT ''")],
+            'doacoes_parcerias': [('descricao', "TEXT DEFAULT ''"), ('criado_em', "TEXT DEFAULT ''")],
+        }.items():
+            existentes = {r[1] for r in db.execute(f'PRAGMA table_info({tabela})')}
+            for campo, definicao in campos:
+                if campo not in existentes:
+                    db.execute(f'ALTER TABLE {tabela} ADD COLUMN {campo} {definicao}')
+        for numero in range(1, 6):
+            db.execute('INSERT OR IGNORE INTO midias(id,projeto_id,titulo,url,fonte) VALUES(?,?,?,?,?)',
+                       (numero, 1001, f'Registro de ação — acervo Grupo Sabá {numero}', f'https://gruposaba.org/wp-content/uploads/2025/01/0{numero}.png', 'https://gruposaba.org/fotos/'))
 

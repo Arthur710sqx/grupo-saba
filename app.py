@@ -14,12 +14,14 @@ from validacoes import validar_consentimento, validar_email, validar_telefone
 
 app = Flask(__name__)
 app.config.update(SECRET_KEY=os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32), SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax', MAX_CONTENT_LENGTH=65536)
-DB_PATH = Path(__file__).resolve().parent / 'grupo_saba.sqlite3'
+DB_PATH = Path(os.environ.get('SABA_DATABASE', str(Path(__file__).resolve().parent / 'grupo_saba.sqlite3')))
 inicializar_banco(DB_PATH)
 
 @app.before_request
 def proteger_formularios():
     session.setdefault('csrf', secrets.token_hex(32))
+    if request.method == 'POST' and any(len(v) > 2000 for v in request.form.values()):
+        abort(400)
     if request.method == 'POST' and not hmac.compare_digest(session['csrf'], request.form.get('_csrf', '')):
         abort(400)
 
@@ -45,7 +47,9 @@ def site_content():
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
-        if not session.get('admin_id'):
+        with conectar(DB_PATH) as db:
+            usuario = db.execute('SELECT id FROM usuarios_admin WHERE id=?', (session.get('admin_id'),)).fetchone()
+        if not usuario:
             return redirect(url_for('admin_login', next=request.path))
         return view(*args, **kwargs)
     return wrapped
@@ -90,7 +94,7 @@ def voluntariado():
             return render_template('voluntariado.html', dados=dados), 400
         try:
             with conectar(DB_PATH) as db:
-                db.execute('INSERT INTO voluntarios(nome,email,telefone,cidade,consentimento) VALUES(?,?,?,?,1)', tuple(dados.values()))
+                db.execute('INSERT INTO voluntarios(nome,email,telefone,cidade,consentimento,disponibilidade,interesses) VALUES(?,?,?,?,1,?,?)', (dados['nome'],dados['email'].lower(),dados['telefone'],dados['cidade'],request.form.get('disponibilidade','').strip(),request.form.get('interesses','').strip()))
         except sqlite3.IntegrityError:
             flash('Este e-mail já está cadastrado ou não foi possível receber seu interesse.', 'erro')
             return render_template('voluntariado.html', dados=dados), 400
@@ -151,10 +155,11 @@ def admin_logout():
 @login_required
 def admin_dashboard():
     with conectar(DB_PATH) as db:
-        totais = {t: db.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('voluntarios', 'beneficiarios', 'parceiros_doadores', 'projetos')}
+        totais = {t: db.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('voluntarios', 'beneficiarios', 'parceiros_doadores')}
+        totais['projetos'] = db.execute('SELECT COUNT(*) FROM projetos WHERE id>=1001').fetchone()[0]
         beneficiarios = db.execute('SELECT * FROM beneficiarios ORDER BY CASE prioridade WHEN "alta" THEN 0 WHEN "media" THEN 1 WHEN "pendente" THEN 2 ELSE 3 END, criado_em').fetchall()
-        voluntarios = db.execute('SELECT id,nome,email,cidade,status FROM voluntarios ORDER BY id DESC LIMIT 30').fetchall()
-        parceiros = db.execute('SELECT id,tipo_pessoa,nome,email,tipo_apoio,status FROM parceiros_doadores ORDER BY id DESC LIMIT 30').fetchall()
+        voluntarios = db.execute('SELECT * FROM voluntarios ORDER BY id DESC').fetchall()
+        parceiros = db.execute('SELECT * FROM parceiros_doadores ORDER BY id DESC').fetchall()
     return render_template('admin.html', totais=totais, beneficiarios=beneficiarios, voluntarios=voluntarios, parceiros=parceiros)
 
 
@@ -162,7 +167,7 @@ def admin_dashboard():
 def solicitar_apoio():
     dados = {k: request.form.get(k, '').strip() for k in ('nome', 'contato', 'localizacao', 'situacao', 'necessidades')}
     if request.method == 'POST':
-        if not all(dados.values()) or not validar_consentimento(request.form.get('consentimento')):
+        if not all(dados.values()) or not validar_telefone(dados['contato']) or not validar_consentimento(request.form.get('consentimento')):
             flash('Preencha os campos obrigatórios e confirme o aviso de privacidade.', 'erro')
             return render_template('apoio.html', dados=dados), 400
         with conectar(DB_PATH) as db:
@@ -209,6 +214,7 @@ def registrar_visita(beneficiario_id):
             abort(404)
         db.execute('INSERT INTO visitas_beneficiarios(beneficiario_id,data,responsavel,observacoes,grau_urgencia) VALUES(?,?,?,?,?)', (beneficiario_id, data_visita, responsavel, observacoes, urgencia))
         db.execute('UPDATE beneficiarios SET prioridade=?,status=? WHERE id=?', (urgencia, status, beneficiario_id))
+        db.execute("UPDATE agendamentos SET status='realizada' WHERE beneficiario_id=? AND status='agendada' AND data<=?", (beneficiario_id, data_visita))
         db.execute('INSERT INTO logs_auditoria(usuario_id,acao,entidade) VALUES(?,?,?)', (session['admin_id'], 'visita registrada', f'beneficiario:{beneficiario_id}'))
     flash('Visita registrada. A prioridade foi definida pela avaliação humana informada.', 'sucesso')
     return redirect(url_for('admin_dashboard'))
@@ -218,6 +224,15 @@ def registrar_visita(beneficiario_id):
 def pagina_nao_encontrada(_):
     return render_template('erro.html', codigo=404, mensagem='Não encontramos essa página.'), 404
 
+
+@app.errorhandler(400)
+@app.errorhandler(403)
+@app.errorhandler(413)
+def erro_formulario(erro):
+    return render_template('erro.html', codigo=erro.code, mensagem='Não foi possível enviar. Atualize a página e confira os campos e o acesso.'), erro.code
+
+from gestao import registrar_rotas
+registrar_rotas(app, lambda: DB_PATH, login_required)
 
 if __name__ == '__main__':
     app.run(debug=os.environ.get('FLASK_DEBUG') == '1')
