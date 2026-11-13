@@ -1,12 +1,48 @@
 * { box-sizing: border-box; }
-body { margin: 0; color: #19352f; background: #f6f8f5; font: 16px/1.5 Arial, sans-serif; }
-header { background: #18483e; color: white; display: flex; flex-wrap: wrap; align-items: center; gap: 2rem; padding: 1rem 5%; }
-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
-nav a { color: white; }
-main { max-width: 60rem; margin: 2rem auto; padding: 1rem 2rem 3rem; background: white; }
-a { color: #195c50; } h1 { line-height: 1.2; } 
-table { border-collapse: collapse; width: 100%; } td, th { text-align: left; padding: .65rem; border-bottom: 1px solid #c9d7d3; }
-th { background: #eaf2ee; } label, dt { display: block; font-weight: bold; margin-top: .65rem; }
-input, select { display: block; width: 100%; max-width: 36rem; padding: .55rem; font: inherit; }
-button { background: #195c50; color: white; padding: .55rem .9rem; border: 1px solid #92b5ab; cursor: pointer; }
-main button { margin-top: 1rem; } small, .erro { color: #952e20; } .sucesso { color: #156044; } dd { margin-left: 0; }
+:root { color: #17382f; background: #f3f6f2; font: 100%/1.55 Arial, sans-serif; }
+body { margin: 0; }
+a { color: #145c4c; text-underline-offset: .18em; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid #b05c13; outline-offset: 3px; }
+.atalho { position: absolute; top: -5rem; left: 1rem; padding: .6rem; background: white; }
+.atalho:focus { top: .4rem; }
+header { background: #163f35; color: white; }
+.cabecalho { max-width: 71rem; margin: auto; min-height: 4.6rem; padding: .75rem 2rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem 2rem; }
+.marca { font-size: 1.45rem; font-weight: bold; letter-spacing: -.04em; }
+header a { color: white; text-decoration: none; }
+nav { display: flex; align-items: center; flex-wrap: wrap; gap: .3rem; }
+nav a, nav button { display: inline-block; padding: .55rem .75rem; border-radius: .4rem; }
+nav a:hover, nav a[aria-current] { background: #305b4f; text-decoration: underline; }
+main { max-width: 67rem; margin: 2.8rem auto; padding: clamp(1rem,4vw,3rem); border: 1px solid #d6dfd8; border-radius: .8rem; background: white; overflow-wrap: anywhere; }
+h1 { margin: 0 0 1.5rem; font-size: clamp(1.7rem,4vw,2.6rem); line-height: 1.15; letter-spacing: -.04em; }
+h2, legend { font-weight: bold; font-size: 1.18rem; }
+h2 { margin-top: 2rem; }
+table { border-collapse: collapse; width: 100%; }
+td, th { text-align: left; vertical-align: top; padding: .8rem .9rem; border-bottom: 1px solid #d7dfda; }
+th { background: #e9f1ec; }
+tbody tr:hover { background: #f6f9f6; }
+label, dt { display: block; font-weight: bold; }
+label { margin: .65rem 0 .3rem; }
+input, select { display: block; width: 100%; max-width: 36rem; min-height: 2.7rem; margin-top: .25rem; padding: .55rem .65rem; border: 1px solid #84978f; border-radius: .35rem; background: white; color: inherit; font: inherit; }
+button { background: #175b4a; color: white; padding: .65rem 1rem; border: 1px solid #44766a; border-radius: .4rem; font: inherit; cursor: pointer; }
+button:hover { background: #124335; }
+main button { margin-top: 1rem; }
+fieldset { min-width: 0; border: 0; padding: 0; margin: 0 0 1.5rem; }
+legend { width: 100%; border-bottom: 1px solid #d7dfda; padding-bottom: .4rem; }
+.campos { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .4rem 1.4rem; }
+.campos select, .campos input { max-width: none; }
+small, .erro { color: #932b23; }
+[aria-invalid="true"] { border: 2px solid #932b23; }
+.erro, .sucesso { padding: .8rem 1rem; border-left: .25rem solid; }
+.erro { background: #fff1ed; } .sucesso { background: #eaf5ec; color: #185239; }
+dl { display: grid; grid-template-columns: minmax(8rem,12rem) 1fr; }
+dt, dd { margin: 0; padding: .45rem; border-bottom: 1px solid #d7dfda; }
+.excluir { background: white; color: #902c25; border-color: #902c25; }
+.excluir:hover { background: #fff1ed; }
+@media (max-width: 48rem) {
+  .cabecalho { padding: .8rem 1rem; }
+  main { margin: 1rem .5rem; }
+  .campos { grid-template-columns: 1fr; }
+  th, td { padding: .5rem .25rem; }
+  dl { grid-template-columns: minmax(6rem,35%) 1fr; }
+}

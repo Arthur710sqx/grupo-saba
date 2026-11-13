@@ -1,10 +1,36 @@
 {% extends 'base.html' %}
 {% block titulo %}Ficha · Grupo SABA{% endblock %}
-{% block conteudo %}<h1>{% if id_pessoa %}Editar ficha{% else %}Novo cadastro{% endif %}</h1>
+{% block conteudo %}
+<h1>{% if id_pessoa %}Editar ficha{% else %}Novo cadastro{% endif %}</h1>
+<p>Os campos marcados com * são obrigatórios.</p>
 <form method="post" action="{{ url_for('formulario', id_pessoa=id_pessoa) }}">
-<label>Grupo<select name="grupo" {% if id_pessoa %}disabled{% endif %}>{% for g in categorias %}<option {% if g==dados.get('grupo') %}selected{% endif %}>{{ g }}</option>{% endfor %}</select></label>
-{% if erros.grupo %}<small>{{ erros.grupo }}</small>{% endif %}
-<label>Categoria<select name="categoria"><option value="">Escolha a categoria do grupo</option>{% for g,opcoes in categorias.items() %}<optgroup label="{{ g }}">{% for c in opcoes %}<option {% if c==dados.get('categoria') %}selected{% endif %}>{{ c }}</option>{% endfor %}</optgroup>{% endfor %}</select></label>{% if erros.categoria %}<small>{{ erros.categoria }}</small>{% endif %}
-{% for campo,rotulo in [('nome','Nome completo *'),('documento','CPF ou documento *'),('nascimento','Nascimento (DD/MM/AAAA) *'),('telefone','Telefone com DDD *'),('email','E-mail'),('endereco','Endereço'),('especialidade','Especialidade do voluntário profissional'),('area','Área de atuação do voluntário'),('disponibilidade','Disponibilidade do voluntário'),('necessidade','Necessidade do beneficiário'),('observacoes','Observações')] %}
-<label>{{ rotulo }}<input name="{{ campo }}" value="{{ dados.get(campo,'') }}"></label>{% if erros.get(campo) %}<small>{{ erros[campo] }}</small>{% endif %}
-{% endfor %}<button>Salvar cadastro</button></form>{% endblock %}
+  <fieldset><legend>Classificação</legend><div class="campos">
+    <div><label>Grupo *<select name="grupo" {% if id_pessoa %}disabled{% endif %}>
+      {% for g in categorias %}<option {% if g == dados.get('grupo') %}selected{% endif %}>{{ g }}</option>{% endfor %}
+    </select></label>{% if erros.grupo %}<small>{{ erros.grupo }}</small>{% endif %}</div>
+    <div><label>Categoria *<select name="categoria" required {% if erros.categoria %}aria-invalid="true" aria-describedby="erro-categoria"{% endif %}>
+      <option value="">Escolha a categoria do grupo</option>
+      {% for g, opcoes in categorias.items() %}<optgroup label="{{ g }}">
+        {% for c in opcoes %}<option {% if c == dados.get('categoria') %}selected{% endif %}>{{ c }}</option>{% endfor %}
+      </optgroup>{% endfor %}
+    </select></label>{% if erros.categoria %}<small id="erro-categoria">{{ erros.categoria }}</small>{% endif %}</div>
+  </div></fieldset>
+  {% for titulo, campos in [
+    ('Identificação e contato', [('nome','Nome completo'),('documento','CPF ou documento'),('nascimento','Nascimento (DD/MM/AAAA)'),('telefone','Telefone com DDD'),('email','E-mail'),('endereco','Endereço')]),
+    ('Voluntariado', [('especialidade','Especialidade (obrigatória para voluntário profissional)'),('area','Área de atuação'),('disponibilidade','Disponibilidade')]),
+    ('Atendimento', [('necessidade','Necessidade do beneficiário'),('observacoes','Observações da ficha')])
+  ] %}
+    <fieldset><legend>{{ titulo }}</legend><div class="campos">
+    {% for campo, rotulo in campos %}
+      {% set obrigatorio = campo in ['nome','documento','nascimento','telefone'] %}
+      <div><label>{{ rotulo }}{% if obrigatorio %} *{% endif %}
+        <input name="{{ campo }}" value="{{ dados.get(campo,'') }}" {% if obrigatorio %}required{% endif %}
+          {% if erros.get(campo) %}aria-invalid="true" aria-describedby="erro-{{ campo }}"{% endif %}>
+      </label>{% if erros.get(campo) %}<small id="erro-{{ campo }}">{{ erros[campo] }}</small>{% endif %}</div>
+    {% endfor %}
+    </div></fieldset>
+  {% endfor %}
+  <button>Salvar cadastro</button>
+  <a href="{{ url_for('listar') }}">Voltar aos cadastros</a>
+</form>
+{% endblock %}

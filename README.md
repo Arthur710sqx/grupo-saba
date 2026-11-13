@@ -34,4 +34,8 @@ Nome, documento, nascimento, telefone, grupo e categoria são obrigatórios. A c
 app.py trata HTTP; banco.py concentra SQL; validacoes.py reúne as regras. Templates herdam de base.html e carregam static/estilo.css. Participações são exemplos para consulta por chave estrangeira. Logins armazenam hashes Werkzeug. Com leitura aberta conforme a aula, utilize dados fictícios na demonstração. Esta versão cria uma base própria. Não importa automaticamente fichas da aplicação desktop anterior.
 
 ## O que depende da equipe
-Matrículas, endereço do repositório remoto, registros de entrevistas, validação da organização e contribuições individuais. Não há publicação remota incluída na entrega.
+Matrículas, registros de entrevistas, validação da organização e contribuições individuais.
+
+## Versão acadêmica no GitHub
+[Arthur710sqx/grupo-saba — branch projeto-academico-2026-2](https://github.com/Arthur710sqx/grupo-saba/tree/projeto-academico-2026-2). No GitHub, selecione essa branch para consultar esta versão.
+

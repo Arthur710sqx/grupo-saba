@@ -4,4 +4,5 @@
 {% if pessoa[campo] %}<dt>{{ rotulo }}</dt><dd>{{ pessoa[campo] }}</dd>{% endif %}{% endfor %}</dl>
 <h2>Participações</h2>{% if registros %}<ul>{% for r in registros %}<li>{{ r.data }} · {{ r.atividade }}</li>{% endfor %}</ul>{% else %}<p>Nenhuma participação registrada.</p>{% endif %}
 {% if session.usuario %}<a href="{{ url_for('formulario',id_pessoa=pessoa.id) }}">Editar cadastro</a>{% endif %}
-{% if session.papel=='admin' %}<form method="post" action="{{ url_for('excluir',id_pessoa=pessoa.id) }}" onsubmit="return confirm('Excluir esta pessoa e suas participações?')"><button>Excluir cadastro e participações</button></form>{% endif %}{% endblock %}
+{% if session.papel=='admin' %}<form method="post" action="{{ url_for('excluir',id_pessoa=pessoa.id) }}" onsubmit="return confirm('Excluir esta pessoa e suas participações?')"><button class="excluir">Excluir cadastro e participações</button></form>{% endif %}{% endblock %}
+
