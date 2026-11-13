@@ -1,0 +1,3 @@
+{% extends 'base.html' %}
+{% block titulo %}Relatório · Grupo SABA{% endblock %}
+{% block conteudo %}<h1>Cadastros por grupo e categoria</h1>{% if linhas %}<table><tr><th>Grupo</th><th>Categoria</th><th>Fichas</th></tr>{% for r in linhas %}<tr><td>{{ r.grupo }}</td><td>{{ r.categoria }}</td><td>{{ r.total }}</td></tr>{% endfor %}</table>{% else %}<p>Nenhum cadastro para contabilizar.</p>{% endif %}{% endblock %}

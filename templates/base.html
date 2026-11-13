@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Grupo SABA{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='estilo.css') }}"></head>
+<body><header><strong>Grupo SABA</strong><nav>
+<a href="{{ url_for('listar') }}">Cadastros</a><a href="{{ url_for('busca') }}">Buscar</a>
+<a href="{{ url_for('relatorio') }}">Relatório</a><a href="{{ url_for('sobre') }}">Sobre</a>
+{% if session.usuario %}<a href="{{ url_for('formulario') }}">Novo cadastro</a>
+<form method="post" action="{{ url_for('logout') }}"><button>Sair ({{ session.usuario }})</button></form>
+{% else %}<a href="{{ url_for('login') }}">Entrar</a>{% endif %}</nav></header>
+<main>{% for categoria,msg in get_flashed_messages(with_categories=true) %}<p class="{{ categoria }}">{{ msg }}</p>{% endfor %}
+{% block conteudo %}{% endblock %}</main></body></html>

@@ -1,0 +1,3 @@
+{% if pessoas %}<table><thead><tr><th>ID</th><th>Nome</th><th>Grupo</th><th>Categoria</th></tr></thead><tbody>
+{% for p in pessoas %}<tr><td>{{ p.id }}</td><td><a href="{{ url_for('detalhe', id_pessoa=p.id) }}">{{ p.nome }}</a></td><td>{{ p.grupo }}</td><td>{{ p.categoria }}</td></tr>{% endfor %}
+</tbody></table>{% else %}<p>Nenhum cadastro encontrado.</p>{% endif %}

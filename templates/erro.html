@@ -1,0 +1,2 @@
+{% extends 'base.html' %}
+{% block conteudo %}<h1>{{ codigo }}</h1><p>{% if codigo==403 %}Somente o administrador pode executar esta ação.{% else %}Página ou cadastro não encontrado.{% endif %}</p><a href="{{ url_for('listar') }}">Voltar aos cadastros</a>{% endblock %}

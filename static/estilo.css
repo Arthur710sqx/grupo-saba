@@ -1,0 +1,12 @@
+* { box-sizing: border-box; }
+body { margin: 0; color: #19352f; background: #f6f8f5; font: 16px/1.5 Arial, sans-serif; }
+header { background: #18483e; color: white; display: flex; flex-wrap: wrap; align-items: center; gap: 2rem; padding: 1rem 5%; }
+nav { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+nav a { color: white; }
+main { max-width: 60rem; margin: 2rem auto; padding: 1rem 2rem 3rem; background: white; }
+a { color: #195c50; } h1 { line-height: 1.2; } 
+table { border-collapse: collapse; width: 100%; } td, th { text-align: left; padding: .65rem; border-bottom: 1px solid #c9d7d3; }
+th { background: #eaf2ee; } label, dt { display: block; font-weight: bold; margin-top: .65rem; }
+input, select { display: block; width: 100%; max-width: 36rem; padding: .55rem; font: inherit; }
+button { background: #195c50; color: white; padding: .55rem .9rem; border: 1px solid #92b5ab; cursor: pointer; }
+main button { margin-top: 1rem; } small, .erro { color: #952e20; } .sucesso { color: #156044; } dd { margin-left: 0; }
