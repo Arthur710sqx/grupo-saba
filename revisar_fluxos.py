@@ -3,14 +3,19 @@ import tempfile
 import os
 from datetime import date, timedelta
 from pathlib import Path
-from banco import inicializar_banco, conectar
+from banco import inicializar_banco, conectar, inserir_dados_iniciais
 
 with tempfile.TemporaryDirectory() as pasta:
     os.environ['SABA_DATABASE'] = str(Path(pasta) / 'teste.db')
     import app as modulo
     modulo.DB_PATH = Path(pasta) / 'teste.db'
     inicializar_banco(modulo.DB_PATH)
+    inserir_dados_iniciais(modulo.DB_PATH)
     inicializar_banco(modulo.DB_PATH)
+    assert modulo.app.test_client().get('/').status_code == 200
+    with conectar(modulo.DB_PATH) as db:
+        assert db.execute('SELECT COUNT(*) FROM site_conteudo').fetchone()[0] == 6
+        assert db.execute('SELECT COUNT(*) FROM projetos').fetchone()[0] == 3
     c = modulo.app.test_client()
     for pagina in ['/', '/projetos', '/como-ajudar', '/transparencia', '/voluntariado', '/apoio', '/parcerias', '/admin/entrar']:
         assert c.get(pagina).status_code == 200, pagina
@@ -25,9 +30,20 @@ with tempfile.TemporaryDirectory() as pasta:
     assert enviar('/voluntariado',dict(nome='Teste',email='teste@example.com',telefone='11999999999',cidade='Boa Vista',consentimento='on')).status_code == 302
     for tipo in ['fisica','juridica']:
         assert enviar('/parcerias',dict(tipo_pessoa=tipo,nome='Parceiro',email='parceiro@example.com',telefone='11999999999',tipo_apoio='Materiais',consentimento='on')).status_code == 302
-    assert enviar('/admin/primeiro-acesso',dict(email='admin@example.com',senha='senha-teste-longa-123')).status_code == 302
+    assert c.get('/admin/primeiro-acesso').status_code == 404
+    nova = '/admin/contas/nova'
+    dados_conta = dict(email='outra@example.com', senha='outra-senha-longa')
+    assert c.get(nova).status_code == 302
+    assert enviar(nova, dados_conta).status_code == 302
+    assert not modulo.banco.ha_admin(modulo.DB_PATH)
+    resultado = modulo.app.test_cli_runner().invoke(args=['inicializar-admin'], input='admin@example.com\nsenha-teste-longa-123\nsenha-teste-longa-123\n')
+    assert resultado.exit_code == 0, resultado.output
+    assert modulo.app.test_cli_runner().invoke(args=['inicializar-admin']).exit_code != 0
     assert enviar('/admin/entrar',dict(email='admin@example.com',senha='senha-teste-longa-123')).status_code == 302
     assert c.get('/admin').status_code == 200
+    assert enviar(nova, dados_conta).status_code == 302
+    assert enviar(nova, dados_conta).status_code == 409
+    assert modulo.banco.obter_admin_email(modulo.DB_PATH, dados_conta['email'])
     assert enviar('/admin/beneficiario/1/visita',dict(data='2026-01-01',responsavel='Equipe',observacoes='Avaliação humana documentada.',urgencia='alta')).status_code == 302
     with conectar(modulo.DB_PATH) as db:
         assert db.execute('SELECT prioridade FROM beneficiarios').fetchone()[0] == 'alta'
@@ -41,14 +57,16 @@ with tempfile.TemporaryDirectory() as pasta:
     assert enviar('/admin/beneficiario/1/acompanhar',dict(acao='atendimento',status='atendido',descricao='Cesta entregue e encaminhamento registrado.')).status_code == 302
     assert enviar('/admin/cadastro/voluntario/1',dict(status='ativo')).status_code == 302
     assert enviar('/admin/cadastro/parceiro/1',dict(status='ativo')).status_code == 302
+    assert b'Projetos por tema' in c.get('/admin/relatorio').data
     for valor in ['-1','NaN','Infinity','1.001']:
         assert enviar('/admin/doacoes',dict(parceiro_id='1',tipo='financeira',valor=valor,descricao='Doação inválida')).status_code == 400
     assert enviar('/admin/doacoes',dict(parceiro_id='1',tipo='financeira',valor='125.50',descricao='Doação para alimentos')).status_code == 302
     assert enviar('/admin/doacoes',dict(parceiro_id='2',tipo='materiais',descricao='10 kits de higiene')).status_code == 302
     assert enviar('/admin/conteudo',dict(tipo='foto',titulo='Teste',url='javascript:alert(1)',fonte='https://gruposaba.org',autorizacao='on')).status_code == 400
     assert enviar('/admin/conteudo',dict(tipo='projeto',titulo='Projeto de teste',objetivo='Descrição verificada',tema='Comunidade',situacao='Em andamento')).status_code == 302
+    assert enviar('/admin/conteudo',dict(tipo='projeto',id='1004',titulo='Projeto de teste',objetivo='Descrição verificada',tema='Comunidade',situacao='Em andamento')).status_code == 302
     assert enviar('/admin/conteudo',dict(tipo='foto',titulo='Foto de teste',url='https://gruposaba.org/wp-content/uploads/2025/01/01.png',fonte='https://gruposaba.org/fotos/',projeto_id='1004',autorizacao='on')).status_code == 302
-    assert b'Projeto de teste' in c.get('/projetos/1004').data
+    assert enviar('/admin/projetos/1004/excluir',{}).status_code == 302
     with conectar(modulo.DB_PATH) as db:
         assert db.execute('SELECT COUNT(*) FROM doacoes_parcerias').fetchone()[0] == 2
         assert db.execute('SELECT status FROM beneficiarios WHERE id=1').fetchone()[0] == 'atendido'

@@ -1,0 +1,24 @@
+{% set categoria=request.args.get('categoria','') %}
+{% set caminho=request.path %}
+{% macro item(label, endpoint, ativo, simbolo, kwargs={}) %}
+<a href="{{ url_for(endpoint,**kwargs) }}" {% if ativo %}aria-current="page"{% endif %}><span class="side-icon" aria-hidden="true">{{ simbolo }}</span><span>{{ label }}</span></a>
+{% endmacro %}
+<aside class="admin-sidebar" aria-label="Menu administrativo">
+<a class="sidebar-brand" href="{{ url_for('admin_dashboard') }}"><span class="brand-mark" aria-hidden="true">S</span><span>Grupo Sabá<small>Central administrativa</small></span></a>
+<details id="sidebar-menu" open><summary>Menu administrativo</summary><div class="sidebar-body"><nav aria-label="Seções administrativas">
+{{ item('Início','admin_dashboard',caminho=='/admin' and not categoria,'⌂') }}
+<p class="sidebar-label">CADASTROS</p>
+{{ item('Voluntários','admin_dashboard',categoria=='voluntarios' or '/voluntario' in caminho,'♧',{'categoria':'voluntarios'}) }}
+{{ item('Apoiadores','admin_dashboard',categoria=='parceiros' or '/parceiro' in caminho,'♡',{'categoria':'parceiros'}) }}
+{{ item('Solicitações','admin_dashboard',categoria=='beneficiarios' or '/beneficiario' in caminho or '/solicitacao/' in caminho,'▤',{'categoria':'beneficiarios'}) }}
+<p class="sidebar-label">GESTÃO</p>
+{{ item('Doações','doacoes',request.endpoint=='doacoes','◇') }}
+{{ item('Relatórios','relatorio',request.endpoint=='relatorio','▥') }}
+<p class="sidebar-label">EDIÇÃO DO SITE</p>
+{% for chave,nome,icone in [('projetos','Projetos','▦'),('noticias','Notícias','▤'),('midias','Galeria de imagens','▧')] %}
+{{ item(nome,'central',(request.view_args.get('colecao') if request.view_args else none)==chave or (request.endpoint=='central' and request.args.get('colecao','projetos')==chave),icone,{'colecao':chave}) }}
+{% endfor %}
+{{ item('Textos e banner','aparencia',request.endpoint=='aparencia','✎') }}
+{{ item('Ver site','inicio',false,'↗') }}
+</nav><div class="sidebar-account"><strong>Área da equipe</strong><small>Acesso administrativo</small><a class="sidebar-add-account" href="{{ url_for('adicionar_conta') }}">Adicionar conta</a><form method="post" action="{{ url_for('admin_logout') }}"><button type="submit">Sair da conta →</button></form></div></div></details>
+</aside>

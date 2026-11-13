@@ -1,0 +1,9 @@
+<dialog id="access-panel" aria-labelledby="access-title"><div class="access-heading"><h2 id="access-title">Acessibilidade</h2><button id="fechar-acesso" type="button">Fechar ×</button></div>
+<fieldset><legend>Tamanho do texto</legend><div class="font-controls"><button type="button" id="fonte-menos" aria-label="Diminuir fonte">A−</button><output id="font-value" aria-live="polite">100%</output><button type="button" id="fonte-mais" aria-label="Aumentar fonte">A+</button></div></fieldset>
+<fieldset><legend>Aparência e leitura</legend><div class="access-grid">
+{% for id,label in [('alto-contraste','Alto contraste'),('inverter','Inverter cores'),('cinza','Escala de cinza'),('letras','Espaçar letras'),('linhas','Espaçar linhas'),('links','Destacar links'),('titulos','Destacar títulos'),('regua','Régua de leitura'),('mascara','Máscara de leitura'),('menos-movimento','Reduzir animações')] %}<button type="button" id="{{ id }}" aria-pressed="false">{{ label }}</button>{% endfor %}
+</div></fieldset>
+<label>Posição da régua ou máscara<input id="reading-position" type="range" min="5" max="95" value="50"></label>
+<p>A régua acompanha o ponteiro ou o toque. Sem um campo selecionado, use as setas para cima e para baixo para movê-la.</p>
+<details><summary>Como navegar por teclado</summary><p>Tab avança, Shift+Tab retorna, Enter ativa links e Espaço aciona botões. Esc fecha este painel. Use o primeiro link da página para pular ao conteúdo.</p></details>
+<button type="button" id="restaurar-acesso">Restaurar configurações originais</button><p id="access-status" role="status"></p></dialog>

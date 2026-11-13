@@ -1,0 +1,34 @@
+:root{--green:#237332;--link:#ac173c}
+body{font-size:1rem}
+header{position:relative}
+a{text-decoration:underline;text-underline-offset:.2em}
+.button,.brand{text-decoration:none}
+button,input,select,textarea{font:inherit}
+button,summary,nav a,.button{min-height:44px}
+button{cursor:pointer;padding:.6rem 1rem}
+summary{padding:.4rem 0}
+nav a{display:inline-flex;align-items:center}
+:focus-visible{outline:3px solid #111;outline-offset:3px;box-shadow:0 0 0 6px #fff}
+.skip:focus{position:fixed;color:#111;background:#fff;z-index:100}
+main:focus{outline:none}
+input,textarea,select{border-color:#746178;color:#241729}
+input::placeholder,textarea::placeholder{color:#625369;opacity:1}
+.check{min-height:44px;align-items:center}
+.check input{min-width:24px;min-height:24px}
+.access-options{margin:1rem max(4vw,16px)}
+.access-options p{max-width:75ch}
+.access-options button[aria-pressed="true"]{background:#530e6c;color:#fff}
+html.large-text{font-size:125%}
+html.reduce-motion{scroll-behavior:auto}
+html.reduce-motion *,html.reduce-motion *::before,html.reduce-motion *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+html.high-contrast{--purple:#fff;--cream:#111;--green:#fff;--pink:#ffdf00;--link:#ffdf00;--ink:#fff;--paper:#000;--muted:#fff;--line:#fff}
+.high-contrast body,.high-contrast header,.high-contrast footer,.high-contrast main,.high-contrast section,.high-contrast article,.high-contrast details,.high-contrast figure,.high-contrast .flash,.high-contrast .badge,.high-contrast th,.high-contrast td{background:#000;color:#fff}
+.high-contrast a{color:#ffdf00}
+.high-contrast button,.high-contrast .button,.high-contrast input,.high-contrast select,.high-contrast textarea{background:#000;color:#fff;border:2px solid #fff}
+.high-contrast h1,.high-contrast h2,.high-contrast h3,.high-contrast summary,.high-contrast .eyebrow,.high-contrast .tag{color:#fff}
+.high-contrast .hero:before{display:none}
+main,article,section,form,footer>div{min-width:0;overflow-wrap:anywhere}
+table{table-layout:fixed}
+@media(max-width:700px){.gallery,.news,.cards,.project-grid{grid-template-columns:minmax(0,1fr)}.hero h1{font-size:2.3rem}.page{padding:0 16px}.actions>*{max-width:100%}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+@media(forced-colors:active){button,.button,input,select,textarea{border:2px solid ButtonText}:focus-visible{outline:3px solid Highlight}}

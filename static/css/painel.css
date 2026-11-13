@@ -1,0 +1,23 @@
+.access-launch{position:fixed;right:0;top:45%;z-index:30;background:#530e6c;color:#fff;border:2px solid #fff;border-radius:12px 0 0 12px;box-shadow:0 4px 20px #0003;padding:12px;font-size:.85rem}
+#access-panel{position:fixed;inset:0 0 0 auto;margin:0;width:min(420px,100%);max-width:100%;max-height:100dvh;height:100dvh;padding:24px;border:0;background:#fffdf4;color:#3a2840;overflow-y:auto;box-shadow:-8px 0 40px #0003}
+#access-panel::backdrop{background:#0007}
+.access-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}
+#access-panel .actions{display:grid;grid-template-columns:1fr;width:100%}
+#access-panel button{border:1px solid #746178;border-radius:8px;background:#fff;color:#530e6c;text-align:left}
+#access-panel button[aria-pressed=true]{background:#530e6c;color:white;border:2px solid #530e6c}
+.high-contrast #access-panel,.high-contrast #access-panel button{background:#000;color:#fff;border:2px solid #fff}
+.high-contrast #access-panel button[aria-pressed=true]{background:#fff;color:#000}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.admin-page{max-width:1280px}
+.admin-search{max-width:none;display:grid;grid-template-columns:1fr 2fr 1fr auto;align-items:end;padding:20px;background:#fff;border:1px solid var(--line);border-radius:10px}
+.admin-table{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.admin-table table{margin:0;table-layout:auto}
+.admin-table caption{text-align:left;padding:12px;color:var(--muted)}
+.admin-table td{vertical-align:top;padding:12px 16px}
+.admin-table td:first-child{width:30%}
+.admin-table td p{margin:0 0 8px}
+.admin-table details{display:inline-block;margin:4px;padding:5px 10px;vertical-align:top}
+.admin-table summary{font-size:.9rem}
+.admin-table .button{padding:8px 12px;font-size:.9rem}
+.admin-overview .cards{padding-bottom:0}
+@media(max-width:800px){.admin-search{grid-template-columns:1fr}.access-launch{top:auto;bottom:16px;font-size:.8rem}.admin-table table{min-width:560px}}

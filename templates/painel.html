@@ -1,0 +1,19 @@
+{% extends 'base.html' %}{% block content %}
+<section class="page admin-page"><p class="eyebrow">ADMINISTRAÇÃO</p><h1>Painel da equipe</h1>{% include 'admin_nav.html' %}
+<div class="actions"><a class="button" href="{{ url_for('doacoes') }}">Doações</a><a class="button" href="{{ url_for('central') }}">Conteúdo do site</a><a class="button" href="{{ url_for('relatorio') }}">Relatórios</a><form method="post" action="{{ url_for('admin_logout') }}"><button>Sair</button></form></div>
+<details class="admin-overview" open><summary>Resumo dos cadastros</summary><div class="cards">{% for nome,total in totais.items() %}<article><span class="number">{{ total }}</span><h2>{{ nome|title }}</h2></article>{% endfor %}</div></details><details><summary>Novo cadastro</summary><div class="actions"><a class="button" href="{{ url_for('novo_cadastro',categoria='voluntario') }}">Voluntário</a><a class="button" href="{{ url_for('novo_cadastro',categoria='parceiro') }}">Apoiador ou parceiro</a><a class="button" href="{{ url_for('novo_cadastro',categoria='beneficiario') }}">Solicitação de apoio</a></div></details>
+<h2>Gerenciamento de cadastros</h2><nav class="actions" aria-label="Tipo de cadastro">{% for chave,rotulo in [('voluntarios','Voluntários'),('parceiros','Apoiadores'),('beneficiarios','Solicitações')] %}<a class="button {{ 'secondary' if categoria!=chave }}" href="{{ url_for('admin_dashboard',categoria=chave) }}" {% if categoria==chave %}aria-current="page"{% endif %}>{{ rotulo }}</a>{% endfor %}</nav><form method="get" class="admin-search">
+<label>Categoria<select name="categoria">{% for chave,nome in [('voluntarios','Voluntários'),('parceiros','Apoiadores e parceiros'),('beneficiarios','Solicitações de apoio')] %}<option value="{{ chave }}" {% if categoria==chave %}selected{% endif %}>{{ nome }}</option>{% endfor %}</select></label>
+<label>Buscar<input type="search" name="q" value="{{ busca }}" placeholder="Nome, contato, cidade ou apoio" maxlength="120"></label>
+<label>Situação<select name="status"><option value="">Todas</option>{% for item in situacoes %}<option {% if status==item %}selected{% endif %}>{{ item }}</option>{% endfor %}</select></label>
+<button class="button">Buscar cadastros</button><a href="{{ url_for('admin_dashboard',categoria=categoria) }}">Limpar filtros</a></form>
+<p role="status">{{ quantidade }} resultado(s) · Página {{ pagina }} de {{ paginas }}</p>
+<div class="admin-table" role="region" aria-label="Cadastros encontrados" tabindex="0"><table><caption>Resultados da busca — até 20 cadastros por página</caption><thead><tr><th scope="col">Nome e situação</th><th scope="col">Contato e ações</th></tr></thead><tbody>{% for r in registros %}<tr><td><strong>{{ r.nome }}</strong><br><span class="badge">{{ r.status }}</span></td><td>
+{% if categoria=='beneficiarios' %}<p>{{ r.contato }} · {{ r.localizacao }} · Prioridade {{ r.prioridade }}</p><a class="button" href="{{ url_for('ficha',identificador=r.id) }}">Abrir ficha e acompanhamento</a>
+{% else %}{% set tipo='voluntario' if categoria=='voluntarios' else 'parceiro' %}
+<p>{{ r.email }} · {{ r.telefone }}</p><p>{{ r.cidade if categoria=='voluntarios' else r.tipo_apoio }}</p>
+<a href="{{ url_for('cadastro',categoria=tipo,identificador=r.id) }}">Gerenciar cadastro →</a>
+
+{% endif %}</td></tr>
+{% else %}<tr><td colspan="2">Nenhum cadastro encontrado. Revise a busca ou limpe os filtros.</td></tr>{% endfor %}</tbody></table></div>
+<nav class="actions" aria-label="Paginação">{% if pagina>1 %}<a href="{{ url_for('admin_dashboard',categoria=categoria,q=busca,status=status,pagina=pagina-1) }}">Anterior</a>{% endif %}{% if pagina<paginas %}<a href="{{ url_for('admin_dashboard',categoria=categoria,q=busca,status=status,pagina=pagina+1) }}">Próxima</a>{% endif %}</nav></section>{% endblock %}

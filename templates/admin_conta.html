@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block content %}
+<section class="page narrow">
+  <h1>Adicionar conta</h1>
+  <p>Esta conta terá acesso administrativo ao site e aos cadastros da equipe.</p>
+  <form method="post">
+    <label>E-mail<input name="email" type="email" value="{{ email|default('') }}" required></label>
+    <label>Senha (mínimo de 12 caracteres)<input name="senha" type="password" minlength="12" required autocomplete="new-password"></label>
+    <button class="button">Adicionar conta</button>
+  </form>
+  <a href="{{ url_for('admin_dashboard') }}">Voltar ao painel</a>
+</section>
+{% endblock %}

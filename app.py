@@ -1,16 +1,17 @@
+import click
 import os
 import sqlite3
 import secrets
 import hmac
-from datetime import date
 from functools import wraps
 from pathlib import Path
 
 from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from banco import conectar, inicializar_banco
-from validacoes import validar_consentimento, validar_email, validar_telefone
+import banco
+from banco import inicializar_banco
+from validacoes import validar_beneficiario, validar_email, validar_parceiro, validar_voluntario
 
 app = Flask(__name__)
 app.config.update(SECRET_KEY=os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32), SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax', MAX_CONTENT_LENGTH=65536)
@@ -40,26 +41,30 @@ def finalizar_resposta(response):
 
 
 def site_content():
-    with conectar(DB_PATH) as db:
-        return {r['chave']: r['valor'] for r in db.execute('SELECT chave,valor FROM site_conteudo')}
+    return banco.obter_conteudo(DB_PATH)
+
+
+@app.context_processor
+def conteudo_global():
+    return {'site_cfg': site_content()}
 
 
 def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
-        with conectar(DB_PATH) as db:
-            usuario = db.execute('SELECT id FROM usuarios_admin WHERE id=?', (session.get('admin_id'),)).fetchone()
+        usuario = banco.obter_admin(DB_PATH, session.get('admin_id'))
         if not usuario:
             return redirect(url_for('admin_login', next=request.path))
+        if usuario['perfil'] != 'admin':
+            abort(403)
         return view(*args, **kwargs)
     return wrapped
 
 
 @app.route('/')
 def inicio():
-    with conectar(DB_PATH) as db:
-        projetos = db.execute('SELECT * FROM projetos WHERE id >= 1001 ORDER BY id LIMIT 3').fetchall()
-        noticias = db.execute('SELECT * FROM noticias WHERE id >= 1001 ORDER BY data DESC LIMIT 3').fetchall()
+    projetos = banco.listar_projetos(DB_PATH)[:3]
+    noticias = banco.listar_noticias(DB_PATH)
     return render_template('inicio.html', site=site_content(), projetos=projetos, noticias=noticias)
 
 
@@ -70,8 +75,7 @@ def quem_somos():
 
 @app.route('/projetos')
 def projetos():
-    with conectar(DB_PATH) as db:
-        projetos = db.execute('SELECT * FROM projetos WHERE id >= 1001 AND (titulo LIKE ? OR tema LIKE ?) ORDER BY id', ('%' + request.args.get('q','') + '%', '%' + request.args.get('q','') + '%')).fetchall()
+    projetos = banco.listar_projetos(DB_PATH, request.args.get('q','').strip())
     return render_template('projetos.html', projetos=projetos)
 
 
@@ -85,16 +89,26 @@ def como_ajudar():
     return render_template('como-ajudar.html')
 
 
+def ler_cadastro(*campos):
+    """Lê os campos do formulário público antes da validação."""
+    dados = {}
+    for campo in campos:
+        dados[campo] = request.form.get(campo, '').strip()
+    dados['consentimento'] = request.form.get('consentimento')
+    return dados
+
+
 @app.route('/voluntariado', methods=['GET', 'POST'])
 def voluntariado():
-    dados = {k: request.form.get(k, '').strip() for k in ('nome', 'email', 'telefone', 'cidade')}
+    dados = ler_cadastro('nome', 'email', 'telefone', 'cidade', 'disponibilidade', 'interesses')
     if request.method == 'POST':
-        if not dados['nome'] or not validar_email(dados['email']) or not validar_telefone(dados['telefone']) or not dados['cidade'] or not validar_consentimento(request.form.get('consentimento')):
-            flash('Confira os campos, informe um telefone válido e aceite o aviso de privacidade.', 'erro')
+        erros=validar_voluntario(dados)
+        if erros:
+            flash('Confira os campos: '+' '.join(erros.values()), 'erro')
             return render_template('voluntariado.html', dados=dados), 400
         try:
-            with conectar(DB_PATH) as db:
-                db.execute('INSERT INTO voluntarios(nome,email,telefone,cidade,consentimento,disponibilidade,interesses) VALUES(?,?,?,?,1,?,?)', (dados['nome'],dados['email'].lower(),dados['telefone'],dados['cidade'],request.form.get('disponibilidade','').strip(),request.form.get('interesses','').strip()))
+            dados['email']=dados['email'].lower()
+            banco.registrar_voluntario(DB_PATH,dados)
         except sqlite3.IntegrityError:
             flash('Este e-mail já está cadastrado ou não foi possível receber seu interesse.', 'erro')
             return render_template('voluntariado.html', dados=dados), 400
@@ -108,37 +122,53 @@ def privacidade():
     return render_template('privacidade.html')
 
 
-@app.route('/admin/primeiro-acesso', methods=['GET', 'POST'])
-def admin_setup():
-    if request.remote_addr not in ('127.0.0.1', '::1'):
-        abort(403)
-    with conectar(DB_PATH) as db:
-        existe = db.execute('SELECT 1 FROM usuarios_admin LIMIT 1').fetchone()
-    if existe:
-        abort(404)
+@app.cli.command('inicializar-admin')
+def inicializar_admin():
+    """Configura a primeira conta pelo terminal em uma instalação nova."""
+    if banco.ha_admin(DB_PATH):
+        raise click.ClickException('Já existe uma conta. Use Adicionar conta no painel.')
+    email = click.prompt('E-mail').strip().lower()
+    senha = click.prompt('Senha', hide_input=True, confirmation_prompt=True)
+    if not validar_email(email) or not 12 <= len(senha) <= 2000:
+        raise click.ClickException('Informe um e-mail válido e uma senha de 12 a 2000 caracteres.')
+    with banco.conectar(DB_PATH) as db:
+        insercao = db.execute(
+            "INSERT INTO usuarios_admin(email, senha_hash, perfil) "
+            "SELECT ?, ?, 'admin' WHERE NOT EXISTS (SELECT 1 FROM usuarios_admin)",
+            (email, generate_password_hash(senha)),
+        )
+        if not insercao.rowcount:
+            raise click.ClickException('Já existe uma conta. Use Adicionar conta no painel.')
+    click.echo('Conta inicial criada.')
+
+
+@app.route('/admin/contas/nova', methods=['GET', 'POST'])
+@login_required
+def adicionar_conta():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         senha = request.form.get('senha', '')
         if not validar_email(email) or len(senha) < 12:
             flash('Informe um e-mail válido e uma senha com pelo menos 12 caracteres.', 'erro')
-            return render_template('admin_setup.html'), 400
-        with conectar(DB_PATH) as db:
-            db.execute('INSERT INTO usuarios_admin(email,senha_hash,perfil) VALUES(?,?,?)', (email, generate_password_hash(senha), 'admin'))
-        flash('Acesso administrativo criado. Entre para continuar.', 'sucesso')
-        return redirect(url_for('admin_login'))
-    return render_template('admin_setup.html')
+            return render_template('admin_conta.html', email=email), 400
+        try:
+            banco.criar_admin(DB_PATH, email, generate_password_hash(senha))
+        except sqlite3.IntegrityError:
+            flash('Já existe uma conta com esse e-mail.', 'erro')
+            return render_template('admin_conta.html', email=email), 409
+        flash('Conta administrativa adicionada.', 'sucesso')
+        return redirect(url_for('admin_dashboard'))
+    return render_template('admin_conta.html')
 
 
 @app.route('/admin/entrar', methods=['GET', 'POST'])
 def admin_login():
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
-        with conectar(DB_PATH) as db:
-            user = db.execute('SELECT * FROM usuarios_admin WHERE email=?', (email,)).fetchone()
+        user = banco.obter_admin_email(DB_PATH,email)
         if user and check_password_hash(user['senha_hash'], request.form.get('senha', '')):
             session.clear()
             session['admin_id'] = user['id']
-            session['admin_email'] = user['email']
             return redirect(url_for('admin_dashboard'))
         flash('E-mail ou senha incorretos.', 'erro')
     return render_template('admin_login.html')
@@ -154,24 +184,34 @@ def admin_logout():
 @app.route('/admin')
 @login_required
 def admin_dashboard():
-    with conectar(DB_PATH) as db:
-        totais = {t: db.execute(f'SELECT COUNT(*) FROM {t}').fetchone()[0] for t in ('voluntarios', 'beneficiarios', 'parceiros_doadores')}
-        totais['projetos'] = db.execute('SELECT COUNT(*) FROM projetos WHERE id>=1001').fetchone()[0]
-        beneficiarios = db.execute('SELECT * FROM beneficiarios ORDER BY CASE prioridade WHEN "alta" THEN 0 WHEN "media" THEN 1 WHEN "pendente" THEN 2 ELSE 3 END, criado_em').fetchall()
-        voluntarios = db.execute('SELECT * FROM voluntarios ORDER BY id DESC').fetchall()
-        parceiros = db.execute('SELECT * FROM parceiros_doadores ORDER BY id DESC').fetchall()
-    return render_template('admin.html', totais=totais, beneficiarios=beneficiarios, voluntarios=voluntarios, parceiros=parceiros)
+    totais = banco.totais(DB_PATH)
+    categoria = request.args.get('categoria')
+    if not categoria:
+        return render_template('admin_inicio.html', totais=totais)
+    if categoria not in ('voluntarios', 'parceiros', 'beneficiarios'):
+        abort(400)
+    busca = request.args.get('q', '').strip()[:120]
+    status = request.args.get('status', '').strip()
+    pagina = max(1, request.args.get('pagina', 1, type=int))
+    por_pagina = 6
+    registros, quantidade, situacoes = banco.buscar_painel(DB_PATH, categoria, busca, status, pagina, tamanho=por_pagina)
+    ultima = max(1, (quantidade + por_pagina - 1) // por_pagina)
+    if pagina > ultima:
+        return redirect(url_for('admin_dashboard', categoria=categoria, q=busca, status=status, pagina=ultima))
+    return render_template('admin_busca.html', pesquisou='q' in request.args or 'status' in request.args, totais=totais, registros=registros,
+                           quantidade=quantidade, situacoes=situacoes, categoria=categoria,
+                           busca=busca, status=status, pagina=pagina, paginas=ultima)
 
 
 @app.route('/apoio', methods=['GET', 'POST'])
 def solicitar_apoio():
-    dados = {k: request.form.get(k, '').strip() for k in ('nome', 'contato', 'localizacao', 'situacao', 'necessidades')}
+    dados = ler_cadastro('nome', 'contato', 'localizacao', 'situacao', 'necessidades')
     if request.method == 'POST':
-        if not all(dados.values()) or not validar_telefone(dados['contato']) or not validar_consentimento(request.form.get('consentimento')):
-            flash('Preencha os campos obrigatórios e confirme o aviso de privacidade.', 'erro')
+        erros=validar_beneficiario(dados)
+        if erros:
+            flash('Confira os campos: '+' '.join(erros.values()), 'erro')
             return render_template('apoio.html', dados=dados), 400
-        with conectar(DB_PATH) as db:
-            db.execute('INSERT INTO beneficiarios(nome,contato,localizacao,situacao,necessidades,consentimento) VALUES(?,?,?,?,?,1)', tuple(dados.values()))
+        banco.registrar_beneficiario(DB_PATH,dados)
         flash('Sua solicitação foi recebida. A equipe avaliará as informações e, se necessário, combinará uma visita.', 'sucesso')
         return redirect(url_for('solicitar_apoio'))
     return render_template('apoio.html', dados=dados)
@@ -179,45 +219,17 @@ def solicitar_apoio():
 
 @app.route('/parcerias', methods=['GET', 'POST'])
 def parcerias():
-    dados = {k: request.form.get(k, '').strip() for k in ('tipo_pessoa', 'nome', 'email', 'telefone', 'tipo_apoio')}
+    dados = ler_cadastro('tipo_pessoa', 'nome', 'email', 'telefone', 'tipo_apoio')
     if request.method == 'POST':
-        if dados['tipo_pessoa'] not in ('fisica', 'juridica') or not dados['nome'] or not validar_email(dados['email']) or not validar_telefone(dados['telefone']) or not dados['tipo_apoio'] or not validar_consentimento(request.form.get('consentimento')):
-            flash('Revise os campos, telefone, categoria e autorização de contato.', 'erro')
+        erros=validar_parceiro(dados)
+        if erros:
+            flash('Confira os campos: '+' '.join(erros.values()), 'erro')
             return render_template('parcerias.html', dados=dados), 400
-        with conectar(DB_PATH) as db:
-            db.execute('INSERT INTO parceiros_doadores(tipo_pessoa,nome,email,telefone,consentimento,tipo_apoio) VALUES(?,?,?,?,1,?)', tuple(dados[k] for k in ('tipo_pessoa', 'nome', 'email', 'telefone', 'tipo_apoio')))
+        dados['email']=dados['email'].lower()
+        banco.registrar_parceiro(DB_PATH,dados)
         flash('Obrigado pelo interesse. Nossa equipe poderá entrar em contato.', 'sucesso')
         return redirect(url_for('parcerias'))
     return render_template('parcerias.html', dados=dados)
-
-
-@app.post('/admin/beneficiario/<int:beneficiario_id>/visita')
-@login_required
-def registrar_visita(beneficiario_id):
-    data_visita = request.form.get('data', '').strip()
-    responsavel = request.form.get('responsavel', '').strip()
-    observacoes = request.form.get('observacoes', '').strip()
-    urgencia = request.form.get('urgencia', '').strip()
-    if not data_visita or not responsavel or len(observacoes) < 10 or urgencia not in ('baixa', 'media', 'alta'):
-        flash('Informe data, responsável e grau de urgência para registrar a visita.', 'erro')
-        return redirect(url_for('admin_dashboard'))
-    try:
-        date.fromisoformat(data_visita)
-        if date.fromisoformat(data_visita) > date.today():
-            raise ValueError()
-    except ValueError:
-        flash('Data da visita inválida.', 'erro')
-        return redirect(url_for('admin_dashboard'))
-    status = 'priorizado' if urgencia == 'alta' else 'em avaliacao'
-    with conectar(DB_PATH) as db:
-        if not db.execute('SELECT id FROM beneficiarios WHERE id=?', (beneficiario_id,)).fetchone():
-            abort(404)
-        db.execute('INSERT INTO visitas_beneficiarios(beneficiario_id,data,responsavel,observacoes,grau_urgencia) VALUES(?,?,?,?,?)', (beneficiario_id, data_visita, responsavel, observacoes, urgencia))
-        db.execute('UPDATE beneficiarios SET prioridade=?,status=? WHERE id=?', (urgencia, status, beneficiario_id))
-        db.execute("UPDATE agendamentos SET status='realizada' WHERE beneficiario_id=? AND status='agendada' AND data<=?", (beneficiario_id, data_visita))
-        db.execute('INSERT INTO logs_auditoria(usuario_id,acao,entidade) VALUES(?,?,?)', (session['admin_id'], 'visita registrada', f'beneficiario:{beneficiario_id}'))
-    flash('Visita registrada. A prioridade foi definida pela avaliação humana informada.', 'sucesso')
-    return redirect(url_for('admin_dashboard'))
 
 
 @app.errorhandler(404)
@@ -233,6 +245,8 @@ def erro_formulario(erro):
 
 from gestao import registrar_rotas
 registrar_rotas(app, lambda: DB_PATH, login_required)
+from central import registrar_central
+registrar_central(app, lambda: DB_PATH, login_required)
 
 if __name__ == '__main__':
     app.run(debug=os.environ.get('FLASK_DEBUG') == '1')

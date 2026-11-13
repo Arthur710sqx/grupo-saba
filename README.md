@@ -1,67 +1,91 @@
-# Grupo Sabá — aplicação Python com banco de dados
+# Grupo Sabá — site e administração local
 
-Site institucional e gestão local em Flask e SQLite. A abertura da página inicial foi preservada. Os cadastros são persistentes.
+Aplicação web em Python, Flask e SQLite. O painel permite atualizar partes do site, acompanhar cadastros e consultar relatórios.
 
-## Abrir e executar no Windows
+## Abrir no VS Code (Windows)
 
-Abra grupo-saba.code-workspace no VS Code. No terminal da pasta:
+Abra `grupo-saba.code-workspace` no VS Code. Em **Terminal → Novo Terminal**, execute:
 
 ```powershell
 .\.venv\Scripts\python.exe app.py
 ```
 
-Abra http://127.0.0.1:5000. Se uma versão antiga estiver aberta, encerre-a com Ctrl+C e execute novamente. Não é necessário ativar o ambiente nem usar py ou pip isoladamente. F5 exige as extensões Python e Python Debugger.
+Abra http://127.0.0.1:5000. Para parar o servidor, pressione `Ctrl+C` no terminal. Se não existir a pasta `.venv`, crie o ambiente e instale as dependências:
 
-Em outro computador, instale Python 3.10+, execute `python -m venv .venv` e `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`. O ambiente virtual não acompanha o Git/ZIP.
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-## Primeiro acesso da equipe
+## Banco de dados
 
-Na própria máquina, abra /admin/primeiro-acesso e escolha e-mail e senha de pelo menos 12 caracteres. Não existe senha padrão. Depois use /admin/entrar. O cadastro inicial é desativado quando existe um administrador. Cadastre a equipe antes de expor a instalação na rede.
+O SQLite é o arquivo `grupo_saba.sqlite3` na raiz desta pasta, ao lado de `app.py`. A aplicação cria as tabelas e aplica migrações quando inicia. Cadastros ficam salvos nesse arquivo depois que o servidor fecha. O caminho pode ser definido com `SABA_DATABASE`. O `.gitignore` mantém o arquivo de fora do Git porque pode conter dados pessoais.
 
-## Fluxos implementados
+Em uma instalação nova, o banco começa sem conteúdo de demonstração. Para carregar o conteúdo inicial, execute uma vez:
 
-- Voluntários: contato, cidade, disponibilidade, interesses e situação novo/contatado/ativo/inativo.
-- Beneficiários: cadastro → agendamento → visita com avaliação humana justificada → prioridade → atendimento. A ficha mantém histórico de agendamentos, visitas e atendimentos. Reagendar preserva a agenda anterior; a avaliação conclui agendas até sua data.
-- Parceiros: pessoas físicas ou jurídicas, contato, colaboração e situação.
-- Doações: valores financeiros, materiais ou serviços vinculados ao parceiro. Registro interno; não processa pagamento nem emite recibo fiscal.
-- Projetos: busca pública, página individual, cadastro e edição pela equipe.
-- Galeria: fotos oficiais, ampliação, fonte e vínculo a projeto. A equipe cadastra URLs HTTPS de imagens autorizadas. Vídeo abre no Instagram. Imagens dependem do servidor de origem.
-- Transparência: identificação e fontes institucionais. Sem indicadores ou relatórios inventados.
+```powershell
+.\.venv\Scripts\python.exe dados_iniciais.py
+```
 
-## Banco e relacionamentos
+Esse comando usa `INSERT OR IGNORE`: não substitui os cadastros que já existem. O `revisar_fluxos.py` prepara seus dados de exemplo em um banco temporário e não altera este arquivo.
 
-O arquivo grupo_saba.sqlite3 é criado automaticamente e permanece após fechar o aplicativo. SABA_DATABASE permite escolher outro caminho. Migrações preservam os registros existentes. Projetos demonstrativos antigos (IDs inferiores a 1001) permanecem armazenados, fora da apresentação pública.
+## Acesso administrativo
 
-| Tabela | Finalidade |
+Entre em `/admin/entrar` e use **Adicionar conta** acima de **Sair da conta**. Em uma instalação sem contas, configure o primeiro administrador no terminal do projeto com `.\.venv\Scripts\python.exe -m flask --app app inicializar-admin`.
+
+No painel:
+
+- `/admin/central`: busca e paginação de projetos, notícias e fotos; criação, edição individual e exclusão com confirmação. As imagens são cadastradas por URL HTTPS, sem upload de arquivos.
+- `/admin/aparencia`: edição dos textos institucionais, apresentação, banner principal (imagem, descrição acessível e legenda), endereço e CNPJ.
+- `/admin/novo/<categoria>`: cadastro administrativo de voluntário, parceiro ou beneficiário, mantendo a autorização de uso de dados.
+- Os cadastros aparecem em tabelas de até 20 registros; o link “Gerenciar cadastro” reúne edição, situação e exclusão. Solicitações mantêm seus históricos.
+
+## Ferramentas de acessibilidade
+
+O botão no canto inferior abre um painel operável com Tab, Shift+Tab e Esc. Há fonte de 80% a 200%, contraste, inversão, escala de cinza, espaçamento, destaque de links/títulos, redução de animações e restauração. Régua e máscara acompanham ponteiro/toque ou a posição escolhida no controle deslizante; fora dos campos, as setas também ajustam a posição. Preferências ficam no navegador, sem gravar dados pessoais.
+
+Verificações adicionais usam banco temporário:
+
+```powershell
+.\.venv\Scripts\python.exe verificar_melhorias.py
+# Opcional: teste no Edge com Playwright instalado no ambiente de desenvolvimento
+.\.venv\Scripts\python.exe -m pip install playwright
+.\.venv\Scripts\python.exe verificar_interface.py
+```
+
+Os testes cobrem 55 cadastros, busca, paginação, edição, conteúdo publicado, validação, controle de acesso, CSRF e uso das ferramentas no navegador. Não equivalem a uma certificação de acessibilidade ou teste com todas as tecnologias assistivas.
+
+## Fluxos existentes
+
+- `/admin/conteudo`: altera textos institucionais, cria/edita projetos e publica referências de fotos HTTPS autorizadas; projetos podem ser removidos com suas mídias vinculadas.
+- `/admin`: permite acompanhar solicitações, registrar avaliação de visita, editar e atualizar a situação de voluntários e parceiros, além de excluí-los quando permitido.
+- `/admin/beneficiario/<id>`: agenda visita, registra avaliação, define prioridade após avaliação humana e mantém histórico de atendimentos.
+- `/admin/doacoes`: registra contribuições financeiras, materiais e serviços. É apenas controle interno, sem processar pagamentos ou emitir recibos fiscais.
+- `/admin/relatorio`: apresenta totais e agrupamentos por tema de projeto e cidade de voluntários.
+
+## Estrutura de dados
+
+| Tabela | Uso |
 |---|---|
-| voluntarios | Cadastro, disponibilidade e situação |
-| beneficiarios | Solicitação e prioridade definida pela equipe |
-| agendamentos | Datas e responsáveis vinculados ao beneficiário |
-| visitas_beneficiarios | Avaliações e justificativas vinculadas ao beneficiário |
-| atendimentos | Histórico de apoios e encaminhamentos |
-| parceiros_doadores | Pessoas físicas e jurídicas |
-| doacoes_parcerias | Doações vinculadas ao parceiro |
-| projetos / midias | Projetos e referências às fotografias |
-| noticias / acoes_eventos / site_conteudo | Conteúdo institucional e estrutura de eventos |
-| usuarios_admin / logs_auditoria | Senhas com hash e alterações de gestão |
+| `projetos`, `midias`, `noticias`, `acoes_eventos`, `site_conteudo` | Conteúdo do site e referências de mídia |
+| `voluntarios` | Contato, disponibilidade e situação |
+| `beneficiarios`, `agendamentos`, `visitas_beneficiarios`, `atendimentos` | Solicitações e histórico de acompanhamento |
+| `parceiros_doadores`, `doacoes_parcerias` | Parceiros e contribuições recebidas |
+| `usuarios_admin`, `logs_auditoria` | Acesso administrativo e registro de alterações |
 
-Administradores têm o mesmo acesso nesta versão. Dados pessoais não aparecem em páginas públicas. Consultas parametrizadas, chaves estrangeiras, proteção CSRF e senhas com hash. SQLite é um arquivo sem criptografia própria: proteja a pasta e suas cópias.
+As tabelas relacionadas usam chaves estrangeiras. As consultas de gravação usam parâmetros SQL; formulários verificam os campos antes de escrever e mantêm os valores em caso de erro. Há proteção CSRF nos formulários POST e senhas armazenadas com hash.
 
-## Testes e backup
+## Verificação e cópia de segurança
 
 ```powershell
 .\.venv\Scripts\python.exe revisar_fluxos.py
 .\.venv\Scripts\python.exe backup.py
 ```
 
-Os testes usam banco temporário isolado: páginas, cadastros, login, bloqueio anônimo, CSRF, visitas, agenda, atendimento, doações e conteúdo. O backup usa a API SQLite e salva em backups/. Mantenha cópia protegida fora do computador. Para restaurar, pare o servidor, preserve uma cópia do banco atual e copie o backup escolhido para o caminho do banco.
+O primeiro comando verifica páginas públicas, cadastros, autenticação, acompanhamento, doações, conteúdo e chaves estrangeiras usando arquivo temporário. O segundo cria uma cópia consistente em `backups/`. Guarde o banco e as cópias em local protegido; SQLite não cifra os dados por conta própria.
 
-## Fontes e publicação
+## Escopo e publicação
 
-Fontes: https://gruposaba.org/sobre-nos/, https://gruposaba.org/fotos/ e notícias institucionais. Trans-formando Identidades é iniciativa da Defensoria Pública de Roraima divulgada pelo Grupo Sabá. Fotos referenciadas do acervo oficial.
+O visual e as informações institucionais tomam como referência o site oficial https://gruposaba.org/ e páginas de sobre, fotos e transparência. Revise textos, fontes e autorização das imagens antes de publicar externamente. A aplicação é para execução local: antes de operar publicamente, configure servidor de produção, HTTPS, chave secreta persistente, política de privacidade e rotina de cópias. Não exponha o servidor de desenvolvimento na internet.
 
-Entrega preparada para execução local. Antes da operação pública: validar textos, autorização de imagens, aviso de privacidade e retenção; configurar HTTPS, FLASK_SECRET_KEY persistente, cookies seguros, servidor de produção, backups e proteção contra abuso. Não exponha o servidor de desenvolvimento na internet. Não há envio automático de mensagens, pagamento online ou conta individual de beneficiário: contato e avaliação são feitos pela equipe.
-
-## Git
-
-Repositório local versionado. Banco, ambiente e backups não entram no Git. Não há remoto configurado; envio ao GitHub requer endereço do repositório e autenticação do proprietário.
+O projeto tem repositório Git local. Banco, ambiente virtual e cópias de segurança ficam fora do Git; não há remoto configurado.
